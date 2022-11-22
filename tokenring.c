@@ -71,13 +71,11 @@ int main(int argc, char** argv) {
     for(int i = 1; i <= n ; i++){
         strcpy(filepath,"./temp/pipe");
         strcpy(str,"");
+        strcat(filepath,int_to_str(i,str));
+        strcat(filepath,"to");
         if(i == n){
-            strcat(filepath,int_to_str(i,str));
-            strcat(filepath,"to");
             strcat(filepath,"1");
         }else{
-            strcat(filepath,int_to_str(i,str));
-            strcat(filepath,"to");
             strcat(filepath,int_to_str(i+1,str));
         }
         strcpy(fifos[j],filepath);
