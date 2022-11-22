@@ -37,6 +37,10 @@ void test_debug(){
 
 */
 }
+char* fillPipesPath(char *fifos, int n){
+    
+}
+
 
 
 int main(int argc, char** argv) {
@@ -55,14 +59,13 @@ int main(int argc, char** argv) {
     // Time -- time > 0;
     int time = atoi(argv[3]) > 0 ? atoi(argv[3]) : 5;
 	// File descriptors for pipes i and i+1 and token
-	int fd1[2], fd2[2], token = 0;
+	int fd1, fd2, token = 0;
     // Pipes path array
-    char* fifos[n];
+    char* fifos[n][30];
 
 
-    //      Generate path of pipes (buggy)
-    char filepath[50];
-    //auxiliary 
+    //      Generate path of pipes
+    char filepath[80];
     int j = 0;
     char str[5];
     for(int i = 1; i <= n ; i++){
@@ -77,14 +80,17 @@ int main(int argc, char** argv) {
             strcat(filepath,"to");
             strcat(filepath,int_to_str(i+1,str));
         }
-        fifos[j] = filepath;
+        strcpy(fifos[j],filepath);
         j++;
     }
 
-    for (int i = 0; i < n; i++){
-        printf("%s ", fifos[i]);
-        printf("\n");}
     
+    for (int i = 0; i < n; i++){
+        printf("%s", fifos[i]);
+        printf("\n");}
+    fd1 = open(fifos[0], O_WRONLY);
+    close(fd1);
+
         
 
 }
