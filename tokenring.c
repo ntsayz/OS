@@ -86,7 +86,7 @@ int main(int argc, char** argv) {
     for (int i = 0; i < n; i++){
         printf("%s", fifos[i]);
         printf("\n");}
-    fd1 = open(fifos[0], O_WRONLY);
+    fd1 = open(*fifos[0], O_WRONLY);
     close(fd1);
 
         
