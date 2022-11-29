@@ -75,6 +75,7 @@ int main(int argc, char** argv) {
     pid_t   pid;
     // Pipes path array
     char* fifos[n][MAX];
+    int tokenread=0;
 
 
     //          Generate path of pipes
@@ -130,14 +131,12 @@ int main(int argc, char** argv) {
 
     while(true){
         if((fd2 = open(file1, O_RDONLY)) < 0){
-            fprintf(stderr, "%s: pipe opening error: %s\n", argv[0], strerror(errno));
-            exit(EXIT_FAILURE);
+            fprintf(stderr, "./tokering: pipe opening error: %s\n",strerror(errno));
+            return 2;
         }
-
-        int tokenread;
         if(read(fd2,&tokenread,sizeof(int)) < 0){ // erro
-            fprintf(stderr, "%s: read error: %s\n", argv[0], strerror(errno));
-            exit(EXIT_FAILURE);
+            fprintf(stderr, "./tokenring: read error: %s\n", strerror(errno));
+            return 2;
         }
         close(fd2);
 
