@@ -95,7 +95,7 @@ int main(int argc, char** argv) {
 
     // If the user doesn't comply with the ranges it'll use the default values ./tokenring 5 0.25 2
 
-    // Nr of processes -- n > 2 
+    // Nr of processes -- n > 1 
     int n = atoi(argv[1]) > 1 ? atoi(argv[1]) : 5;
     // Probabilty -- 100% >= p >= 1%
     float probability =  (atof(argv[2]) >= 0.001 && atof(argv[2]) <= 1.0) ? atof(argv[2]) : 0.25;
