@@ -43,9 +43,9 @@ char *slice(char *str, int start, int end)
 }
 void print_error(bool r, char* filepath){
     if(r){
-        printf("Failed to open file%d\n",filepath);
+        printf("Failed to open file%s\n",filepath);
     }else{
-        printf("Failed to read/write to file%d\n",filepath);
+        printf("Failed to read/write to file%s\n",filepath);
     }
 }
 
@@ -70,9 +70,9 @@ int main(int argc, char** argv) {
     // Time -- time > 0;
     int time = atoi(argv[3]) > 0 ? atoi(argv[3]) : 5;
     // File descriptors for pipes i and i+1 and token
-    int fd1, fd2, token = 0;
-    char* file1 , file2, dest;
-    pid_t   pid;
+    int token = 0;
+    char* dest;
+    pid_t   pid[n];
     // Pipes path array
     char* fifos[n][MAX];
     int tokenread=0;
@@ -128,61 +128,82 @@ int main(int argc, char** argv) {
     }
     close(fd1);
 
-
-    while(true){
-        if((fd2 = open(file1, O_RDONLY)) < 0){
-            fprintf(stderr, "./tokering: pipe opening error: %s\n",strerror(errno));
+    char *file1=(char*)malloc(50*sizeof(char));
+    char *file2=(char*) malloc(50*sizeof(char));
+    for (int i=1; i <= n; i++) {
+        if((pid[i-1] = fork()) < 0) {
+            fprintf(stderr, "./tokenring: fork error: %s\n", strerror(errno));
             return 2;
+        } else if(pid[i-1] == 0) {
+            if(i == n) {
+                sprintf(file1, "pipe%dto1", i);
+                sprintf(file2, "pipe%dto%d", i-1, i);
+            } else if(i == 1) {
+                sprintf(file1, "pipe%dto%d", i, i+1);
+                sprintf(file2, "pipe%dto1", n);
+            } else {
+                sprintf(file1, "pipe%dto%d", i, i + 1);
+                sprintf(file2, "pipe%dto%d", i - 1, i);
+            }
+            int fd[2];
+            if(i==1) {
+                if ((fd[1] = open(file1, O_WRONLY)) < 0) {
+                    fprintf(stderr, "./tokenring: pipe opening error: %s\n", strerror(errno));
+                    return 2;
+                }
+
+                val++;
+
+                if (write(fd[1], &tokenread, sizeof(int)) < 0) {
+                    fprintf(stderr, "./tokenring: write error: %s\n", strerror(errno));
+                    return 2;
+                }
+
+                close(fd[1]);
+            }
+            while (true) {
+                if ((fd[0] = open(file2, O_RDONLY)) < 0) {
+                    fprintf(stderr, "./tokering: pipe opening error: %s\n", strerror(errno));
+                    return 2;
+                }
+                if (read(fd2, &tokenread, sizeof(int)) < 0) {
+                    fprintf(stderr, "./tokenring: read error: %s\n", strerror(errno));
+                    return 2;
+                }
+                close(fd[0]);
+
+                tokenread++;
+
+                if (lock(probability)) {
+                    printf("[p%s] lock on token (val = %d)\n", slice(file1, 10, 10), tokenread);
+                    sleep(time);
+                    printf("[p%s] unlock on token\n", slice(file2, 10, 10));
+                }
+                if((fd[1] = open(file1, O_WRONLY)) < 0) {
+                    fprintf(stderr, "./tokenring: pipe opening error: %s\n", strerror(errno));
+                    return 2;
+                }
+
+                if(write(fd[1], &tokenread, sizeof(int)) < 0) {
+                    fprintf(stderr, "./tokenring: write error: %s\n",strerror(errno));
+                    return 2;
+                }
+                close(fd[1]);
+            }
+            return 0;
         }
-        if(read(fd2,&tokenread,sizeof(int)) < 0){ // erro
-            fprintf(stderr, "./tokenring: read error: %s\n", strerror(errno));
-            return 2;
-        }
-        close(fd2);
-
-        tokenread++;
-
-        printf("hh%d",tokenread);
-
-        if(lock(probability)){
-            printf("[p%s] lock on token (val = %d)\n",slice(file1,10,10),tokenread);
-            sleep(time);
-            printf("[p%s] unlock on token\n",slice(file2,10,10));
-        }
-
-
-
-        file2 = fifos[itr+1];
-        fd1 = open(file2,O_RDWR);
-        if(write(fd1,&tokenread,sizeof(tokenread)) == -1){
-            print_error(0,file2);
-            return 2;
-        }
-
-        close(fd1);
-
-        if(itr  == n-2){
-            itr = 0;
-            file1 = file2;
-        }else{
-            itr++;
-            file1 = fifos[itr];
+        for(int i =0 ; i < n ; i++){
+            if(waitpid(pid[i], NULL, 0) < 0) {
+                fprintf(stderr, "./tokenring: waitpid error: %s\n",strerror(errno));
+                return 2;
+            }
         }
 
 
 
     }
-    // Clean up
-    for(int i =0 ; i < n ; i++){
-        char* fileToDelete = fifos[i];
-        unlink(fileToDelete);
-    }
 
-
-
-}
-
-void test_debug(){
+    void test_debug(){
 /*
     printf("%d , %f , %d ", n,p,time);
     printf("\n");
@@ -198,4 +219,4 @@ void test_debug(){
         printf("[p%s]lock on token val(%d)\n",slice(fifos[i],10,10),token);
         }
 */
-}
+    }
