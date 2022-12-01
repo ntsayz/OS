@@ -43,9 +43,9 @@ char *slice(char *str, int start, int end)
 }
 void print_error(bool r, char* filepath){
     if(r){
-        printf("Failed to open file%d\n",filepath);
+        printf("Failed to open file%s\n",filepath);
     }else{
-        printf("Failed to read/write to file%d\n",filepath);
+        printf("Failed to read/write to file%s\n",filepath);
     }
 }
 
@@ -71,7 +71,8 @@ int main(int argc, char** argv) {
     int time = atoi(argv[3]) > 0 ? atoi(argv[3]) : 5;
 	// File descriptors for pipes i and i+1 and token
 	int fd1, fd2, token = 0;
-    char* file1 , file2, dest;
+    char* file1 , dest;
+    char* file2;
     pid_t   pid;
     // Pipes path array
     char* fifos[n][MAX];
@@ -94,6 +95,7 @@ int main(int argc, char** argv) {
         strcpy(fifos[j],filepath);
         j++;
     }
+    //
 
     //   Create pipes (Temporary files in ./tmp)
     for(int i =0 ; i < n ; i++){
@@ -114,6 +116,7 @@ int main(int argc, char** argv) {
 
     int itr = 0;
     file1 = fifos[itr];
+    printf("hello\n");
     
     fd1 = open(file1,O_RDWR);
     
@@ -126,6 +129,7 @@ int main(int argc, char** argv) {
         return 2;
     }
     close(fd1);
+    //
     
 
     while(true){
@@ -156,7 +160,7 @@ int main(int argc, char** argv) {
         
         
 
-        file2 = fifos[itr+1];
+        file2 = fifos[itr+1][MAX];
         fd1 = open(file2,O_RDWR);
         if(write(fd1,&tokenread,sizeof(tokenread)) == -1){
             print_error(0,file2);
@@ -170,7 +174,7 @@ int main(int argc, char** argv) {
             file1 = file2;
         }else{
             itr++;
-            file1 = fifos[itr];
+            file1 = fifos[itr][MAX];
         }
 
         
@@ -178,7 +182,7 @@ int main(int argc, char** argv) {
     }
     // Clean up
     for(int i =0 ; i < n ; i++){
-        char* fileToDelete = fifos[i];
+        char* fileToDelete = fifos[i][MAX];
         unlink(fileToDelete);
     }
 
