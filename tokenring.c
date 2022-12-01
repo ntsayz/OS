@@ -7,6 +7,8 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <math.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <errno.h>
 #ifndef __cplusplus
 #include <stdbool.h>
@@ -89,7 +91,7 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-    //    Input validation, definitions
+    //                 Input validation, definitions
 
     // If the user doesn't comply with the ranges it'll use the default values ./tokenring 5 0.25 2
 
@@ -101,7 +103,7 @@ int main(int argc, char** argv) {
     int time = atoi(argv[3]) > 0 ? atoi(argv[3]) : 2;
     //File descriptors and token
     int fd[2], token = 0;
-    pid_t   pid[n];
+    pid_t  pid[n];
     // Pipes path array
     char* fifos[n][MAX];
     //Filepaths for pipes i and i+1
