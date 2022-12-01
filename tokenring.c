@@ -110,24 +110,8 @@ int main(int argc, char** argv) {
             }
         }
     }
-    printf("hello\n");
-
-
-
-    int itr = 0;
-    file1 = fifos[itr];
-
-    fd1 = open(file1,O_RDWR);
-
-    if(fd1 == -1){
-        print_error(1,file1);
-        return 2;
-    }
-    if(write(fd1,&token,sizeof(token)) == -1){
-        print_error(0,file1);
-        return 2;
-    }
-    close(fd1);
+    
+    
 
     char *file1=(char*)malloc(50*sizeof(char));
     char *file2=(char*) malloc(50*sizeof(char));
@@ -137,14 +121,14 @@ int main(int argc, char** argv) {
             return 2;
         } else if(pid[i-1] == 0) {
             if(i == n) {
-                sprintf(file1, "pipe%dto1", i);
-                sprintf(file2, "pipe%dto%d", i-1, i);
+                sprintf(file1, "./tmp/pipe%dto1", i);
+                sprintf(file2, "./tmp/pipe%dto%d", i-1, i);
             } else if(i == 1) {
-                sprintf(file1, "pipe%dto%d", i, i+1);
-                sprintf(file2, "pipe%dto1", n);
+                sprintf(file1, "./tmp/pipe%dto%d", i, i+1);
+                sprintf(file2, "./tmp/pipe%dto1", n);
             } else {
-                sprintf(file1, "pipe%dto%d", i, i + 1);
-                sprintf(file2, "pipe%dto%d", i - 1, i);
+                sprintf(file1, "./tmp/pipe%dto%d", i, i + 1);
+                sprintf(file2, "./tmp/pipe%dto%d", i - 1, i);
             }
             int fd[2];
             if(i==1) {
@@ -152,8 +136,6 @@ int main(int argc, char** argv) {
                     fprintf(stderr, "./tokenring: pipe opening error: %s\n", strerror(errno));
                     return 2;
                 }
-
-                val++; //todo
 
                 if (write(fd[1], &tokenread, sizeof(int)) < 0) {
                     fprintf(stderr, "./tokenring: write error: %s\n", strerror(errno));
@@ -190,18 +172,18 @@ int main(int argc, char** argv) {
                     return 2;
                 }
                 close(fd[1]);
+
             }
             return 0;
         }
-        for(int i =0 ; i < n ; i++){
-            if(waitpid(pid[i], NULL, 0) < 0) {
-                fprintf(stderr, "./tokenring: waitpid error: %s\n",strerror(errno));
-                return 2;
-            }
+        
+    }
+
+    for(int i =0 ; i < n ; i++){
+        if(waitpid(pid[i], NULL, 0) < 0) {
+            fprintf(stderr, "./tokenring: waitpid error: %s\n",strerror(errno));
+            return 2;
         }
-
-
-
     }
 }
 
