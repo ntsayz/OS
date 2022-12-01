@@ -11,7 +11,8 @@
 #ifndef __cplusplus
 #include <stdbool.h>
 #endif
-#define MAX 80
+
+#define MAX 50
 #define SIZE sizeof(int);
 
 // Helper functions
@@ -41,44 +42,13 @@ char *slice(char *str, int start, int end)
 
     return output;
 }
-void print_error(bool r, char* filepath){
-    if(r){
-        printf("Failed to open file%s\n",filepath);
-    }else{
-        printf("Failed to read/write to file%s\n",filepath);
-    }
-}
 
 // bloqueio de envio da token
 bool lock(float probability) {
     return rand()%100 < (probability * 100);
 }
-
-
-int main(int argc, char** argv) {
-    if(argc < 4){
-        printf("Usage: ./tokenring n_proc prob time\n\r");
-        return EXIT_FAILURE;
-    }
-
-    //    Input validation, definitions
-
-    // Nr of processes -- n > 1 (not sure)
-    int n = atoi(argv[1]) > 0 ? atoi(argv[1]) : 2;
-    // Probabilty -- 100% >= p >= 1%
-    float probability =  (atof(argv[2]) >= 0.001 && atof(argv[2]) <= 1.0) ? atof(argv[2]) : 0.001;
-    // Time -- time > 0;
-    int time = atoi(argv[3]) > 0 ? atoi(argv[3]) : 5;
-    // File descriptors for pipes i and i+1 and token
-    int token = 0;
-    char* dest;
-    pid_t   pid[n];
-    // Pipes path array
-    char* fifos[n][MAX];
-    int tokenread=0;
-
-
-    //          Generate path of pipes
+//   Create pipes (Temporary files in ./tmp)
+bool createPipes(int n, char* fifos[n][MAX]){
     char filepath[MAX];
     int j = 0;
     char str[5];
@@ -95,9 +65,7 @@ int main(int argc, char** argv) {
         strcpy(fifos[j],filepath);
         j++;
     }
-    //
-
-    //   Create pipes (Temporary files in ./tmp)
+    
     for(int i =0 ; i < n ; i++){
         char* fileToCreate = fifos[i];
         if ((mkfifo(fileToCreate,0666)) != 0) {
@@ -106,20 +74,55 @@ int main(int argc, char** argv) {
                 mkfifo(fileToCreate,S_IRWXU);
             }else{
                 printf("Unable to create a fifo; errno=%d\n",errno);
-                exit(1);
+                return false;
             }
         }
     }
-    
+    return true;
+
+}
+
+
+int main(int argc, char** argv) {
+    if(argc < 4){
+        printf("Usage: ./tokenring n_proc prob time\n\r");
+        return EXIT_FAILURE;
+    }
+
+    //    Input validation, definitions
+
+    // If the user doesn't comply with the ranges it'll use the default values ./tokenring 5 0.25 2
+
+    // Nr of processes -- n > 2 
+    int n = atoi(argv[1]) > 1 ? atoi(argv[1]) : 5;
+    // Probabilty -- 100% >= p >= 1%
+    float probability =  (atof(argv[2]) >= 0.001 && atof(argv[2]) <= 1.0) ? atof(argv[2]) : 0.25;
+    // Time -- time > 0;
+    int time = atoi(argv[3]) > 0 ? atoi(argv[3]) : 2;
+    //File descriptors and token
+    int fd[2], token = 0;
+    pid_t   pid[n];
+    // Pipes path array
+    char* fifos[n][MAX];
+    //Filepaths for pipes i and i+1
+    char *file1=(char*) malloc(MAX*sizeof(char)) , *file2=(char*) malloc(MAX*sizeof(char));
+
+    //If there's any error while creating the fifos it should quit 
+    if(!createPipes(n,fifos)){
+        return 2;
+    }
     
 
-    char *file1=(char*)malloc(50*sizeof(char));
-    char *file2=(char*) malloc(50*sizeof(char));
     for (int i=1; i <= n; i++) {
-        if((pid[i-1] = fork()) < 0) {
-            fprintf(stderr, "./tokenring: fork error: %s\n", strerror(errno));
+
+        if((pid[i-1] = fork())== -1) {
+            fprintf(stderr, "./tokenring: fork errno=%d\n",errno);
             return 2;
+            
+        //  Child process created successfuly
         } else if(pid[i-1] == 0) {
+
+
             if(i == n) {
                 sprintf(file1, "./tmp/pipe%dto1", i);
                 sprintf(file2, "./tmp/pipe%dto%d", i-1, i);
@@ -129,46 +132,54 @@ int main(int argc, char** argv) {
             } else {
                 sprintf(file1, "./tmp/pipe%dto%d", i, i + 1);
                 sprintf(file2, "./tmp/pipe%dto%d", i - 1, i);
+                
             }
-            int fd[2];
+
+            
             if(i==1) {
-                if ((fd[1] = open(file1, O_WRONLY)) < 0) {
-                    fprintf(stderr, "./tokenring: pipe opening error: %s\n", strerror(errno));
+                if ((fd[1] = open(file1, O_WRONLY)) == -1) {
+                    fprintf(stderr, "./tokenring: pipe opening errno=%d\n", errno);
                     return 2;
                 }
 
-                if (write(fd[1], &tokenread, sizeof(int)) < 0) {
-                    fprintf(stderr, "./tokenring: write error: %s\n", strerror(errno));
+                if (write(fd[1], &token, sizeof(token)) == -1) {
+                    fprintf(stderr, "./tokenring: write errno=%d\n",errno);
                     return 2;
                 }
 
                 close(fd[1]);
             }
+
+            
             while (true) {
-                if ((fd[0] = open(file2, O_RDONLY)) < 0) {
-                    fprintf(stderr, "./tokering: pipe opening error: %s\n", strerror(errno));
+                // Opening and reading from previous pipe
+                if ((fd[0] = open(file2, O_RDONLY)) == -1) {
+                    fprintf(stderr, "./tokering: pipe opening errno=%d\n",errno);
                     return 2;
                 }
-                if (read(fd[0], &tokenread, sizeof(int)) < 0) {
-                    fprintf(stderr, "./tokenring: read error: %s\n", strerror(errno));
+                if (read(fd[0], &token, sizeof(token)) == -1) {
+                    fprintf(stderr, "./tokenring: read errno=%d\n", errno);
                     return 2;
                 }
                 close(fd[0]);
 
-                tokenread++;
+
+                token++;
 
                 if (lock(probability)) {
-                    printf("[p%s] lock on token (val = %d)\n", slice(file1, 10, 10), tokenread);
+                    printf("[p%s] lock on token (val = %d)\n", slice(file2, 10, 10), token);
                     sleep(time);
                     printf("[p%s] unlock on token\n", slice(file2, 10, 10));
                 }
-                if((fd[1] = open(file1, O_WRONLY)) < 0) {
-                    fprintf(stderr, "./tokenring: pipe opening error: %s\n", strerror(errno));
+
+                // Opening and writing on current pipe
+                if((fd[1] = open(file1, O_WRONLY)) == -1) {
+                    fprintf(stderr, "./tokenring: pipe opening errno=%d\n", errno);
                     return 2;
                 }
 
-                if(write(fd[1], &tokenread, sizeof(int)) < 0) {
-                    fprintf(stderr, "./tokenring: write error: %s\n",strerror(errno));
+                if(write(fd[1], &token, sizeof(token)) == -1) {
+                    fprintf(stderr, "./tokenring: write errno=%d\n",errno);
                     return 2;
                 }
                 close(fd[1]);
@@ -179,28 +190,12 @@ int main(int argc, char** argv) {
         
     }
 
+    // Parent process has to wait for all of its children to end, otherwise we'd have zombie/orphan processes
+
     for(int i =0 ; i < n ; i++){
-        if(waitpid(pid[i], NULL, 0) < 0) {
-            fprintf(stderr, "./tokenring: waitpid error: %s\n",strerror(errno));
+        if(waitpid(pid[i], NULL, 0)  == -1) {
+            fprintf(stderr, "./tokenring: waitpid error: %d\n",errno);
             return 2;
         }
     }
 }
-
-    void test_debug(){
-/*
-    printf("%d , %f , %d ", n,p,time);
-    printf("\n");
-    for (int i = 0; i < 10000; i++){
-        printf("%d", yesOrNo(p));
-    }
-    for (int i = 0; i < n; i++){
-        printf("%s", fifos[i]);
-        printf("\n");}
-        for (int i = 0; i < n; i++){
-        printf("%s\n", fifos[i]);
-        char* filee = fifos[i];
-        printf("[p%s]lock on token val(%d)\n",slice(fifos[i],10,10),token);
-        }
-*/
-    }

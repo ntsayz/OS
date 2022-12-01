@@ -11,7 +11,7 @@ LINKERFLAG = -lm
 SRCS := $(wildcard *.c)
 BINS := $(SRCS:%.c=%)
 
-all: ${BINS}
+all: ${BINS} 
 
 %: %.o
 		@echo "Checking.."
